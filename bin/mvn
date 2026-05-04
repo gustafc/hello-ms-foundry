@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Wrapper that activates this project's SDKMAN! environment (.sdkmanrc) and
+# then invokes Maven. Use this from any shell — interactive or not — instead
+# of the bare `mvn`.
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ORIGINAL_PWD="$PWD"
+
+SDKMAN_INIT="${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh"
+if [ ! -f "$SDKMAN_INIT" ]; then
+    echo "error: SDKMAN! not found at $SDKMAN_INIT — see https://sdkman.io/" >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+. "$SDKMAN_INIT" >/dev/null 2>&1
+cd "$PROJECT_ROOT" && sdk env >/dev/null 2>&1
+cd "$ORIGINAL_PWD"
+
+exec mvn "$@"
