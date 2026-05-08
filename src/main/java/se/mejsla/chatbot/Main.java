@@ -1,5 +1,9 @@
 package se.mejsla.chatbot;
 
+import se.mejsla.chatbot.tools.ReadFileTool;
+import se.mejsla.chatbot.tools.ToolDispatcher;
+import se.mejsla.chatbot.tools.ToolRegistry;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -23,12 +27,27 @@ public final class Main {
 
         AzureOpenAIClient client = new AzureOpenAIClient(
                 config.endpoint(), config.apiKey(), config.deployment(), config.apiVersion());
-        ChatSession session = new ChatSession(client, SystemPrompt.load());
+
+        ToolRegistry registry = new ToolRegistry();
+        ToolDispatcher dispatcher = null;
+        if (config.toolsEnabled()) {
+            ReadFileTool readFile = new ReadFileTool(config.toolRoot());
+            registry.register(readFile);
+            dispatcher = new ToolDispatcher(registry);
+        }
+
+        ChatSession session = new ChatSession(client, SystemPrompt.load(), registry, dispatcher);
 
         System.out.println("hello-ms-foundry — chatbot ready");
         System.out.println("  deployment:  " + config.deployment());
         System.out.println("  api-version: " + config.apiVersion());
         System.out.println("  api-key:     " + maskKey(config.apiKey()));
+        if (config.toolsEnabled()) {
+            ReadFileTool readFile = (ReadFileTool) registry.get("read_file");
+            System.out.println("  tools:       read_file (sandbox=" + readFile.root() + ")");
+        } else {
+            System.out.println("  tools:       off");
+        }
         System.out.println("Commands: :exit / :quit (also Ctrl-D), :reset");
         System.out.println();
 
@@ -82,14 +101,41 @@ public final class Main {
         }
     }
 
-    record Config(String apiKey, String endpoint, String deployment, String apiVersion) {
+    record Config(
+            String apiKey,
+            String endpoint,
+            String deployment,
+            String apiVersion,
+            boolean toolsEnabled,
+            Path toolRoot) {
 
         static Config load() {
             return new Config(
                     resolveApiKey(),
                     envOr("AZURE_OPENAI_ENDPOINT", DEFAULT_ENDPOINT),
                     envOr("AZURE_OPENAI_DEPLOYMENT", DEFAULT_DEPLOYMENT),
-                    envOr("AZURE_OPENAI_API_VERSION", DEFAULT_API_VERSION));
+                    envOr("AZURE_OPENAI_API_VERSION", DEFAULT_API_VERSION),
+                    resolveToolsEnabled(),
+                    resolveToolRoot());
+        }
+
+        private static boolean resolveToolsEnabled() {
+            String raw = System.getenv("CHATBOT_TOOLS");
+            if (raw == null || raw.isBlank()) {
+                return true;
+            }
+            return switch (raw.trim().toLowerCase()) {
+                case "off", "false", "0", "no" -> false;
+                default -> true;
+            };
+        }
+
+        private static Path resolveToolRoot() {
+            String raw = System.getenv("CHATBOT_TOOL_ROOT");
+            if (raw == null || raw.isBlank()) {
+                return Path.of("").toAbsolutePath();
+            }
+            return Path.of(raw.trim()).toAbsolutePath();
         }
 
         private static String resolveApiKey() {

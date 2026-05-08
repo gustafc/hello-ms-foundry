@@ -45,3 +45,18 @@ The app reads the Azure OpenAI API key from (in order):
 The endpoint, deployment, and API version can be overridden via
 `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`.
 
+## Tools
+
+The bot can read files from your machine via Azure OpenAI tool calling.
+A single tool, `read_file`, is enabled by default and confined to a
+sandbox root (the working directory unless overridden). Reads are capped
+at 256 KiB and must be UTF-8 text. Tool calls are traced to stderr as
+`[tool] read_file …` so you can see what's happening.
+
+- `CHATBOT_TOOLS=off` — disable tool calling and revert to plain
+  streaming chat.
+- `CHATBOT_TOOL_ROOT=/some/path` — override the sandbox root. Anything
+  resolving outside the root (after symlink canonicalisation) is rejected.
+
+See [specs/read-file-tool.md](specs/read-file-tool.md) for the design.
+

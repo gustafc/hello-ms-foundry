@@ -6,6 +6,7 @@ import com.azure.ai.openai.OpenAIServiceVersion;
 import com.azure.ai.openai.models.ChatChoice;
 import com.azure.ai.openai.models.ChatCompletions;
 import com.azure.ai.openai.models.ChatCompletionsOptions;
+import com.azure.ai.openai.models.ChatCompletionsToolDefinition;
 import com.azure.ai.openai.models.ChatRequestMessage;
 import com.azure.ai.openai.models.ChatRequestUserMessage;
 import com.azure.ai.openai.models.ChatResponseMessage;
@@ -37,6 +38,21 @@ public final class AzureOpenAIClient {
             throw new IllegalStateException("Azure OpenAI returned no choices");
         }
         return choices.get(0).getMessage().getContent();
+    }
+
+    public ChatResponseMessage chatWithTools(
+            List<ChatRequestMessage> messages,
+            List<ChatCompletionsToolDefinition> tools) {
+        ChatCompletionsOptions options = new ChatCompletionsOptions(messages);
+        if (tools != null && !tools.isEmpty()) {
+            options.setTools(tools);
+        }
+        ChatCompletions completions = client.getChatCompletions(deployment, options);
+        List<ChatChoice> choices = completions.getChoices();
+        if (choices.isEmpty()) {
+            throw new IllegalStateException("Azure OpenAI returned no choices");
+        }
+        return choices.get(0).getMessage();
     }
 
     public String ask(String userMessage) {
