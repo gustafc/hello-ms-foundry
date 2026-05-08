@@ -72,14 +72,17 @@ Four small classes is enough; resist adding more until something forces it.
 
 ## 5. Configuration
 
-Resolve config in this order (first hit wins):
+Every option resolves as **CLI flag > env var > default**. See
+[`specs/cli-args.md`](cli-args.md) for the full surface; summary:
 
-| Setting       | Source                                      | Default |
-|---------------|---------------------------------------------|---------|
-| API key       | env `AZURE_OPENAI_API_KEY`, else `apikey.txt` next to working dir | required |
-| Endpoint      | env `AZURE_OPENAI_ENDPOINT`                 | `https://bybrick-tech-openai-play.openai.azure.com/` |
-| Deployment    | env `AZURE_OPENAI_DEPLOYMENT`               | TBD (see open questions) |
-| API version   | env `AZURE_OPENAI_API_VERSION`              | pinned constant in code |
+| Setting       | CLI flag                       | Env var                     | Default                                              |
+|---------------|--------------------------------|-----------------------------|------------------------------------------------------|
+| API key       | `--api-key`, `--api-key-file`  | `AZURE_OPENAI_API_KEY` → `apikey.txt` | required (fail-fast)                                 |
+| Endpoint      | `--endpoint`                   | `AZURE_OPENAI_ENDPOINT`     | `https://bybrick-tech-openai-play.openai.azure.com/` |
+| Deployment    | `-d`, `--deployment`           | `AZURE_OPENAI_DEPLOYMENT`   | `gpt-5.2-chat`                                       |
+| API version   | `--api-version`                | `AZURE_OPENAI_API_VERSION`  | pinned constant in code                              |
+| Tool sandbox  | `--tool-root`                  | `CHATBOT_TOOL_ROOT`         | current working directory                            |
+| Tools enabled | `--tools` / `--no-tools`       | `CHATBOT_TOOLS`             | enabled                                              |
 
 Trim whitespace/newlines when reading `apikey.txt`. Fail fast with a clear
 message if the key is missing.

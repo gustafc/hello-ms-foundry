@@ -47,14 +47,23 @@ to a command, stop and use the wrapper instead.
 ## Configuration
 
 Resolved in [`Main.Config`](src/main/java/se/mejsla/chatbot/Main.java) at
-startup; first hit wins:
+startup. Resolution order is **CLI flag > environment variable > default**:
 
-| Setting     | Source                                   | Default                                                  |
-|-------------|------------------------------------------|----------------------------------------------------------|
-| API key     | `AZURE_OPENAI_API_KEY` → `apikey.txt`    | required (fail-fast)                                     |
-| Endpoint    | `AZURE_OPENAI_ENDPOINT`                  | `https://bybrick-tech-openai-play.openai.azure.com/`     |
-| Deployment  | `AZURE_OPENAI_DEPLOYMENT`                | `gpt-5.2-chat`                                           |
-| API version | `AZURE_OPENAI_API_VERSION`               | `2025-01-01-preview` (latest the SDK enum supports)      |
+| Setting       | CLI flag                  | Env var                     | Default                                                  |
+|---------------|---------------------------|-----------------------------|----------------------------------------------------------|
+| API key       | `--api-key` / `--api-key-file` | `AZURE_OPENAI_API_KEY` (then `apikey.txt`) | required (fail-fast)                                     |
+| Endpoint      | `--endpoint`              | `AZURE_OPENAI_ENDPOINT`     | `https://bybrick-tech-openai-play.openai.azure.com/`     |
+| Deployment    | `-d` / `--deployment`     | `AZURE_OPENAI_DEPLOYMENT`   | `gpt-5.2-chat`                                           |
+| API version   | `--api-version`           | `AZURE_OPENAI_API_VERSION`  | `2025-01-01-preview` (latest the SDK enum supports)      |
+| Tool sandbox  | `--tool-root`             | `CHATBOT_TOOL_ROOT`         | current working directory                                |
+| Tools enabled | `--tools` / `--no-tools`  | `CHATBOT_TOOLS` (`true`/`false`/`on`/`off`/`0`/`1`/`yes`/`no`) | enabled                          |
+
+Trailing positional args are joined with single spaces and submitted as
+the first user turn, echoing `> <prompt>` to stdout first. With
+`--batch`, the bot answers that one prompt and exits — the echo is
+suppressed so stdout contains only the model's reply (good for piping
+into other tools). The startup banner and tool traces are on **stderr**;
+stdout is reserved for the conversation.
 
 `apikey.txt` is gitignored. Don't commit it. Don't echo it to logs — the
 masked-key startup line is the only place the key should ever appear.
@@ -81,23 +90,24 @@ hello-ms-foundry/
 ├── specs/{bootstrap.md,plan.md}
 └── src/main/
     ├── java/se/mejsla/chatbot/
-    │   ├── Main.java                  # entry point + Config record + REPL
-    │   ├── ChatSession.java           # message history; reset() keeps system prompt
-    │   ├── AzureOpenAIClient.java     # SDK wrapper; chat() blocking, streamChat() streaming
-    │   └── SystemPrompt.java          # classpath loader
+    │   ├── Main.java                  # tiny picocli delegate
+    │   ├── ChatbotCommand.java        # @Command class: options, REPL, --batch, banner
+    │   ├── ChatSession.java           # message history + tool-call loop
+    │   ├── AzureOpenAIClient.java     # SDK wrapper; chat() blocking, streamChat() streaming, chatWithTools() for the tool loop
+    │   ├── SystemPrompt.java          # classpath loader
+    │   └── tools/                     # tool plumbing (Tool, ToolRegistry, ToolDispatcher, ReadFileTool)
     └── resources/
         ├── system-prompt.md           # the Mejsla persona — edit me, no recompile-of-Java needed
         └── simplelogger.properties    # SLF4J at WARN, silences Netty noise
 ```
 
-Keep this layout small. The plan explicitly says four classes is enough;
-resist adding more until something forces it. `Config` lives nested inside
-`Main` for the same reason.
+Keep this layout small. Resist adding more files unless something
+forces it.
 
 ## REPL contract
 
-[`Main.runRepl`](src/main/java/se/mejsla/chatbot/Main.java) reads stdin
-line by line:
+[`ChatbotCommand.runRepl`](src/main/java/se/mejsla/chatbot/ChatbotCommand.java)
+reads stdin line by line:
 
 - `:exit` / `:quit` / Ctrl-D / EOF — leave
 - `:reset` — clear history but keep the system prompt

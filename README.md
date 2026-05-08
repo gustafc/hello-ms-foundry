@@ -35,15 +35,43 @@ English out. The persona is defined in
 [`src/main/resources/system-prompt.md`](src/main/resources/system-prompt.md)
 and can be edited without recompiling code (only the resource).
 
+### Initial prompt and one-shot mode
+
+Trailing positional args are joined with single spaces and submitted as
+the first user turn:
+
+```sh
+java -jar target/hello-ms-foundry.jar "What does Mejsla do?"
+```
+
+The prompt is echoed (`> <prompt>`), the reply streams, then you drop
+into the REPL. Add `--batch` to suppress the echo and exit after the
+reply — useful for piping:
+
+```sh
+java -jar target/hello-ms-foundry.jar --batch "Summarise pom.xml" > out.txt
+```
+
+The startup banner and tool traces go to **stderr**; stdout is reserved
+for the conversation. Run `--help` for the full option list.
+
 ## Configuration
 
-The app reads the Azure OpenAI API key from (in order):
+Every option can be set on the command line, via an environment variable,
+or left at its built-in default. Resolution order is **CLI flag > env
+var > default** for all of them.
 
-1. `AZURE_OPENAI_API_KEY` env var
-2. `apikey.txt` in the working directory (gitignored, never commit)
+| Setting       | CLI flag                  | Env var                     |
+|---------------|---------------------------|-----------------------------|
+| API key       | `--api-key`, `--api-key-file` | `AZURE_OPENAI_API_KEY` (then `apikey.txt`) |
+| Endpoint      | `--endpoint`              | `AZURE_OPENAI_ENDPOINT`     |
+| Deployment    | `-d`, `--deployment`      | `AZURE_OPENAI_DEPLOYMENT`   |
+| API version   | `--api-version`           | `AZURE_OPENAI_API_VERSION`  |
+| Tool sandbox  | `--tool-root`             | `CHATBOT_TOOL_ROOT`         |
+| Tools enabled | `--tools` / `--no-tools`  | `CHATBOT_TOOLS`             |
 
-The endpoint, deployment, and API version can be overridden via
-`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`.
+`apikey.txt` lives in the working directory, is gitignored, and is the
+last-resort source for the API key.
 
 ## Tools
 
